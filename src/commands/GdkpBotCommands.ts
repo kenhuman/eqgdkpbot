@@ -9,8 +9,9 @@ interface bid {
 }
 
 interface Auction {
+    id: number;
     item: RawEQItem | string;
-    bids: bid[]
+    bids: bid[];
 }
 
 enum Slots {
@@ -156,9 +157,11 @@ const weaponTypes = [ItemTypes["1HB"], ItemTypes["1HS"], ItemTypes["2H Piercing"
 @Discord()
 class GdkpBotCommands {
     private auctions: Map<number, Auction>;
+    private completedAuctions: Auction[];
 
     constructor() {
         this.auctions = new Map<number, Auction>();
+        this.completedAuctions = [];
     }
 
     @Slash("startbids")
@@ -179,15 +182,16 @@ class GdkpBotCommands {
             eqitem = itemDb.getItemByName(item);
         }
 
+        const auctionId = this.getNewId();
+
         const auction: Auction = {
+            id: auctionId,
             item: eqitem ?? item,
             bids: []
         };
-
-        const itemName = eqitem?.name ?? item;
-
-        const auctionId = this.getNewId();
         this.auctions.set(auctionId, auction);
+
+        const itemName = this.getItemName(auction) ?? '';
 
         const itemString = eqitem ? this.generateItemString(eqitem) : 'Item not found!';
 
@@ -220,26 +224,15 @@ class GdkpBotCommands {
                     itemEmbed.fields[1].name = 'Winner';
                     if(auction) {
                         if(auction.bids.length) {                            
-                            let winner;
-                            let winningAmount;
-                            if(auction.bids.length === 1) {
-                                winner = auction.bids[0];
-                                winningAmount = 1;
-                            } else {
-                                const largestBid = Math.max.apply(Math, auction.bids.map(e => e.amount));
-                                const largestBids = auction.bids.filter(e => e.amount === largestBid);
-                                winner = largestBids[0];
-                                if(largestBids.length > 1) {                                    
-                                    winningAmount = largestBid;
-                                } else {
-                                    const secondLargestBid = Math.max.apply(Math, auction.bids.filter(e => e.amount !== largestBid).map(e => e.amount));
-                                    winningAmount = secondLargestBid + 1;
-                                }
-                            }                            
-                            itemEmbed.fields[1].value = `${winner?.interaction.user.username} - ${winningAmount}`;
-                            winner?.interaction.user.send(`You won the bid for ${itemName} at ${winningAmount} platinum.`)
+                            const winner = this.getWinner(auction);
+                            itemEmbed.fields[1].value = `${winner.interaction.user.username} - ${winner.amount}`;
+                            winner.interaction.user.send(`You won the bid for ${itemName} at ${winner.amount} platinum.`)
                         } else {                            
                             itemEmbed.fields[1].value = 'No bids placed.';
+                        }
+                        this.completedAuctions.push(auction);
+                        while(this.completedAuctions.length > 100) {
+                            this.completedAuctions.shift();
                         }
                         this.auctions.delete(auctionId);
                     }
@@ -277,11 +270,52 @@ class GdkpBotCommands {
                 interaction,
                 amount
             });
-            const item = this.auctions.get(idNum)?.item;
-            const itemName = typeof item === "string" ? item : item?.name;
-            interaction.user.send(`Bid on ${itemName} accepted at ${amount} platinum.`);
+            interaction.user.send(`Bid on ${this.getItemName(this.auctions.get(idNum))} accepted at ${amount} platinum.`);
         } else {
             interaction.user.send(`Auction id not found, no bid placed.`);
+        }
+    }
+
+    @Slash("getauction")
+    private async getAuction(
+        @SlashOption("id", { required: true }) id: string,
+        @SlashOption("which") which: number,
+        interaction: CommandInteraction
+    ): Promise<void> {
+        const idNum = parseInt(id, 16);
+        interaction.deferReply();
+        interaction.deleteReply();
+        const auctions = this.completedAuctions.filter(e => e.id === idNum);
+
+        const sendAuctionInfo = (auction: Auction): void => {
+            let msg = '';
+            if(auction) {
+                msg = `Id: ${auction.id}`;
+                msg += `\nName: ${this.getItemName(auction)}`;
+                msg += "\nBidders:";
+                for(const bid of auction.bids) {
+                    msg += `\n${bid.interaction.user.username}: ${bid.amount}`;
+                }
+                const winner = this.getWinner(auction);
+                msg += `\nWinner: ${winner.interaction.user.username}: ${winner.amount}`;
+            } else {
+                msg = "Auction not found.";
+            }
+            interaction.user.send(msg);
+        }
+
+        if(auctions.length > 1) {
+            if(which === undefined) {
+                let msg = "Multiple auctions with id found, please set the which variable to one of the following:";
+                for(let i = 0; i < auctions.length; i++) {
+                    msg += `\n${i + 1}. ${this.getItemName(auctions[i])}`;
+                }
+                interaction.user.send(msg);
+            } else {
+                sendAuctionInfo(auctions[which]);
+            }
+        } else {
+            sendAuctionInfo(auctions[0]);
         }
     }
 
@@ -407,6 +441,41 @@ class GdkpBotCommands {
         if(foundRaces.length) {
             result += `\nRace: ${foundRaces.join(' ')}`;
         }
+        return result;
+    }
+
+    private getItemName(auction: Auction | undefined): string | undefined {
+        if(typeof auction === 'undefined') {
+            return undefined;
+        }
+        const itemName = typeof auction.item === "string" ? auction.item : auction.item?.name;
+        return itemName;
+    }
+
+    private getWinner(auction: Auction): bid {
+        let winner: bid;
+        let winningAmount: number;
+
+        if(auction.bids.length === 1) {
+            winner = auction.bids[0];
+            winningAmount = 1;
+        } else {
+            const largestBid = Math.max.apply(Math, auction.bids.map(e => e.amount));
+            const largestBids = auction.bids.filter(e => e.amount === largestBid);
+            winner = largestBids[0];
+            if(largestBids.length > 1) {                                    
+                winningAmount = largestBid;
+            } else {
+                const secondLargestBid = Math.max.apply(Math, auction.bids.filter(e => e.amount !== largestBid).map(e => e.amount));
+                winningAmount = secondLargestBid + 1;
+            }
+        }
+
+        const result: bid = {
+            interaction: winner.interaction,
+            amount: winningAmount
+        }
+
         return result;
     }
 }

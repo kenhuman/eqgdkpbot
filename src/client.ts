@@ -4,6 +4,10 @@ import { Client } from "discordx";
 
 import { itemDb, spellDb } from ".";
 
+process.on('unhandledRejection', (error) => {
+	console.error('Unhandled promise rejection:', error);
+});
+
 const client = new Client({
     prefix: "!",
     intents: [
