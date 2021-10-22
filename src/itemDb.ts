@@ -1,7 +1,12 @@
 import { createReadStream } from "fs";
 import { createGunzip } from "zlib";
+import { MongoClient } from "mongodb";
 
 const itemFile = 'items.txt.gz';
+
+const dburl = 'mongodb://162.33.179.138:27017';
+const dbname = 'eqgdkp';
+const dbcoll = 'items';
 
 export interface RawEQItem {
     name?: string;
@@ -17,25 +22,38 @@ export default class ItemDB {
     }
 
     private static instance: ItemDB;
-    private eqItems: Map<number, RawEQItem | undefined>;
+    private dbclient: MongoClient;
 
     constructor() {
-        this.eqItems = new Map<number, RawEQItem | undefined>();
+        this.dbclient = new MongoClient(dburl);
     }
 
     public async initialize(): Promise<void> {
-        await this.extractArchive();
+        await this.dbConnect();
     }
 
-    public getItemById(id: number): RawEQItem | undefined {
-        return this.eqItems.get(id);
+    public addItem(item: RawEQItem): void {
+        const db = this.dbclient.db(dbname);
+        const collection = db.collection(dbcoll);
+        item.id = parseInt(item.id, 10);
+        collection.insertOne(item);
     }
 
-    public getItemByName(name: string): RawEQItem | undefined {
-        return [...this.eqItems.values()].find(e => e?.name?.toLowerCase() === name.toLowerCase());
+    public async getItemById(id: number): Promise<RawEQItem | null> {
+        const db = this.dbclient.db(dbname);
+        const collection = db.collection(dbcoll);
+        const result = await collection.findOne<RawEQItem>({ id });
+        return result;
     }
 
-    private async extractArchive(): Promise<void> {
+    public async getItemByName(name: string): Promise<RawEQItem | null> {
+        const db = this.dbclient.db(dbname);
+        const collection = db.collection(dbcoll);
+        const result = await collection.findOne<RawEQItem>({ name: name.toLowerCase() });
+        return result;
+    }
+
+    public async extractArchive(): Promise<void> {
         const deflate = (): Promise<string> => {
             console.log('Deflating archive');
             const input = createReadStream(itemFile);
@@ -90,17 +108,39 @@ export default class ItemDB {
             }
         }
 
+        const db = this.dbclient.db(dbname);
+        let collection = db.collection(dbcoll);
+
+        if(collection) {
+            collection.drop();
+        }
+        collection = await db.createCollection(dbcoll);
+
         let raw = await deflate();
 
         console.log('Transforming raw data');
         raw = raw.replace(/\n\n/g, '');   // instances of \n\n break parsing
         const lines = raw.split('\n');
+        raw = '';
         console.log(`Raw data contains ${lines.length} lines`);
         const headers = lines.shift()?.split('|');
-
+        
         for(const line of lines) {
             const eqitem = eqitemSplitter(line, headers);
-            this.eqItems.set(parseInt(eqitem?.id, 10), eqitem);
+            if(eqitem) {
+                this.addItem(eqitem);
+            }
         }
+
+        await collection.createIndex({ id: 1 });
+
+        if(global.gc) {
+            global.gc();
+        }
+        
+    }
+
+    private async dbConnect(): Promise<void> {
+        await this.dbclient.connect();
     }
 }

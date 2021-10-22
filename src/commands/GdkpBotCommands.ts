@@ -175,11 +175,11 @@ class GdkpBotCommands {
         if(time < 1) time = 1;
         await interaction.deferReply();
         
-        let eqitem: RawEQItem | undefined;
+        let eqitem: RawEQItem | null;
         if(!isNaN(parseInt(item)) && !isNaN(parseFloat(item))) {
-            eqitem = itemDb.getItemById(parseInt(item));
+            eqitem = await itemDb.getItemById(parseInt(item));
         } else {
-            eqitem = itemDb.getItemByName(item);
+            eqitem = await itemDb.getItemByName(item);
         }
 
         const auctionId = this.getNewId();
@@ -317,6 +317,14 @@ class GdkpBotCommands {
         } else {
             sendAuctionInfo(auctions[0]);
         }
+    }
+
+    @Slash("updatedb")
+    private async updateDb(interaction: CommandInteraction) {
+        await interaction.deferReply();
+        interaction.editReply({ content: 'Updating database.' });
+        await itemDb.extractArchive();
+        interaction.editReply({ content: 'Database update complete. '});
     }
 
     private getNewId(): number {
