@@ -8,6 +8,8 @@ const dburl = 'mongodb://162.33.179.138:27017';
 const dbname = 'eqgdkp';
 const dbcoll = 'items';
 
+const MAX_ITEM_QUEUE = 5000;
+
 export interface RawEQItem {
     name?: string;
     [key: string]: any;
@@ -23,20 +25,23 @@ export default class ItemDB {
 
     private static instance: ItemDB;
     private dbclient: MongoClient;
+    private itemQueue: RawEQItem[];
 
     constructor() {
         this.dbclient = new MongoClient(dburl);
+        this.itemQueue = [];
     }
 
     public async initialize(): Promise<void> {
         await this.dbConnect();
     }
 
-    public addItem(item: RawEQItem): void {
-        const db = this.dbclient.db(dbname);
-        const collection = db.collection(dbcoll);
-        item.id = parseInt(item.id, 10);
-        collection.insertOne(item);
+    public async addItem(item: RawEQItem): Promise<void> {
+        if(this.itemQueue.length < MAX_ITEM_QUEUE) {
+            this.itemQueue.push(item);
+        } else {
+            await this.commitItemQueue();
+        }
     }
 
     public async getItemById(id: number): Promise<RawEQItem | null> {
@@ -128,19 +133,30 @@ export default class ItemDB {
         for(const line of lines) {
             const eqitem = eqitemSplitter(line, headers);
             if(eqitem) {
-                this.addItem(eqitem);
+                await this.addItem(eqitem);
             }
         }
 
-        await collection.createIndex({ id: 1 });
+        await this.commitItemQueue();
 
-        if(global.gc) {
-            global.gc();
-        }
-        
+        await collection.createIndex({ id: 1 });        
     }
 
     private async dbConnect(): Promise<void> {
         await this.dbclient.connect();
     }
+
+    private async commitItemQueue(): Promise<void> {
+        const db = this.dbclient.db(dbname);
+        const collection = db.collection(dbcoll);
+        for(const item of this.itemQueue) {
+            item.id = parseInt(item.id, 10);
+        }
+        await collection.insertMany(this.itemQueue);
+        this.itemQueue = [];
+        if(global.gc) {
+            global.gc();
+        }
+    }
+    
 }
