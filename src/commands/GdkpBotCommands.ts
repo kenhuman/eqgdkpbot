@@ -1,7 +1,8 @@
-import { Discord, Slash, SlashOption } from "discordx";
+import { ArgsOf, Discord, Guard, GuardFunction, On, SimpleCommandMessage, Slash, SlashOption } from "discordx";
 import { RawEQItem } from "../itemDb";
-import { itemDb, spellDb } from "..";
-import { CommandInteraction, MessageEmbed } from "discord.js";
+import { itemDb, mongo, spellDb } from "..";
+import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, Message, MessageEmbed, MessageReaction, SelectMenuInteraction, User, VoiceState } from "discord.js";
+import { APIUser } from "discord-api-types";
 
 interface bid {
     interaction: CommandInteraction;
@@ -12,6 +13,11 @@ interface Auction {
     id: number;
     item: RawEQItem | string;
     bids: bid[];
+}
+
+interface ConfigItem {
+    key: string;
+    value: any;
 }
 
 enum Slots {
@@ -154,17 +160,83 @@ enum ItemSizes {
 
 const weaponTypes = [ItemTypes["1HB"], ItemTypes["1HS"], ItemTypes["2H Piercing"], ItemTypes["2HB"], ItemTypes["2HS"], ItemTypes.Archery, ItemTypes.Throwing];
 
+const GetUser = (arg: any): User | APIUser | null | undefined => {
+    const argObj = arg instanceof Array ? arg[0] : arg;
+    const user =
+        argObj instanceof CommandInteraction
+        ? argObj.user
+        : argObj instanceof MessageReaction
+        ? argObj.message.author
+        : argObj instanceof VoiceState
+        ? argObj.member?.user
+        : argObj instanceof Message
+        ? argObj.author
+        : argObj instanceof SimpleCommandMessage
+        ? argObj.message.author
+        : argObj instanceof CommandInteraction ||
+            argObj instanceof ContextMenuInteraction ||
+            argObj instanceof SelectMenuInteraction ||
+            argObj instanceof ButtonInteraction
+        ? argObj.member?.user
+        : argObj.message.author;
+    return user;
+}
+
+const NotBot: GuardFunction<ArgsOf<"messageCreate"> | CommandInteraction | Message> = async (arg, client, next) => {
+    const user = GetUser(arg);
+    if(!user?.bot) {
+        await next();
+    }
+};
+
+const HasRole = (role: string) => {
+    const guard: GuardFunction<ArgsOf<"messageCreate"> | CommandInteraction | SimpleCommandMessage> = async(arg, client, next) => {
+        const argObj = arg instanceof Array ? arg[0] : arg;
+        if(argObj instanceof Message) {
+            if(argObj.member?.roles.cache.some(r => r.name === role) || argObj.member?.permissions.has('ADMINISTRATOR')) {
+                await next();
+            }
+        }
+    }
+    return guard;
+}
+
+const AUCTIONEER_ROLE = 'Officer';
+
 @Discord()
 class GdkpBotCommands {
     private auctions: Map<number, Auction>;
     private completedAuctions: Auction[];
+    private channelId: string;
+
+    private async getChannelId(): Promise<string> {
+        if(!this.channelId) {
+            const db = mongo.db;
+            const collection = db.collection('config');
+            const result = await collection.findOne<ConfigItem>({ key: 'channelId'});
+            this.channelId = result?.value;
+        }        
+        return this.channelId;
+    }
+
+    private async setChannelId(channelId: string): Promise<void> {
+        const db = mongo.db;
+        const collection = db.collection('config');
+        await collection.insertOne({
+            key: 'channelId',
+            value: channelId
+        });
+        this.channelId = channelId;
+    }
 
     constructor() {
         this.auctions = new Map<number, Auction>();
         this.completedAuctions = [];
+        this.channelId = '';
     }
 
     @Slash("startbids")
+    @Guard(HasRole(AUCTIONEER_ROLE))
     private async startbids(
         @SlashOption("item", { required: true }) item: string,
         @SlashOption("time") time: number,
@@ -277,6 +349,7 @@ class GdkpBotCommands {
     }
 
     @Slash("getauction")
+    @Guard(HasRole(AUCTIONEER_ROLE))
     private async getAuction(
         @SlashOption("id", { required: true }) id: string,
         @SlashOption("which") which: number,
@@ -320,11 +393,28 @@ class GdkpBotCommands {
     }
 
     @Slash("updatedb")
+    @Guard(HasRole(AUCTIONEER_ROLE))
     private async updateDb(interaction: CommandInteraction) {
         await interaction.deferReply();
         interaction.editReply({ content: 'Updating database.' });
         await itemDb.extractArchive();
         interaction.editReply({ content: 'Database update complete. '});
+    }
+
+    @Slash("setchannel")
+    @Guard(HasRole(AUCTIONEER_ROLE))
+    private async setChannel(interaction: CommandInteraction) {
+        interaction.deferReply();
+        interaction.deleteReply();
+        this.channelId = interaction.channelId;
+    }
+
+    @On("messageCreate")
+    @Guard(NotBot)
+    onMessage([message]: ArgsOf<"messageCreate">, client: Client) {
+        if(message.channelId === this.channelId) {
+            message.delete();
+        }
     }
 
     private getNewId(): number {

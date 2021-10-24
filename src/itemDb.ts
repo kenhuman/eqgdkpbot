@@ -1,11 +1,9 @@
 import { createReadStream } from "fs";
 import { createGunzip } from "zlib";
-import { MongoClient } from "mongodb";
+import { mongo } from ".";
 
 const itemFile = 'items.txt.gz';
 
-const dburl = 'mongodb://162.33.179.138:27017';
-const dbname = 'eqgdkp';
 const dbcoll = 'items';
 
 const MAX_ITEM_QUEUE = 5000;
@@ -24,16 +22,10 @@ export default class ItemDB {
     }
 
     private static instance: ItemDB;
-    private dbclient: MongoClient;
     private itemQueue: RawEQItem[];
 
     constructor() {
-        this.dbclient = new MongoClient(dburl);
         this.itemQueue = [];
-    }
-
-    public async initialize(): Promise<void> {
-        await this.dbConnect();
     }
 
     public async addItem(item: RawEQItem): Promise<void> {
@@ -45,14 +37,14 @@ export default class ItemDB {
     }
 
     public async getItemById(id: number): Promise<RawEQItem | null> {
-        const db = this.dbclient.db(dbname);
+        const db = mongo.db;
         const collection = db.collection(dbcoll);
         const result = await collection.findOne<RawEQItem>({ id });
         return result;
     }
 
     public async getItemByName(name: string): Promise<RawEQItem | null> {
-        const db = this.dbclient.db(dbname);
+        const db = mongo.db;
         const collection = db.collection(dbcoll);
         const result = await collection.findOne<RawEQItem>({ name: name.toLowerCase() });
         return result;
@@ -113,7 +105,7 @@ export default class ItemDB {
             }
         }
 
-        const db = this.dbclient.db(dbname);
+        const db = mongo.db;
         let collection = db.collection(dbcoll);
 
         if(collection) {
@@ -139,15 +131,11 @@ export default class ItemDB {
 
         await this.commitItemQueue();
 
-        await collection.createIndex({ id: 1 });        
-    }
-
-    private async dbConnect(): Promise<void> {
-        await this.dbclient.connect();
+        await collection.createIndex({ id: 1 });
     }
 
     private async commitItemQueue(): Promise<void> {
-        const db = this.dbclient.db(dbname);
+        const db = mongo.db;
         const collection = db.collection(dbcoll);
         for(const item of this.itemQueue) {
             item.id = parseInt(item.id, 10);

@@ -2,7 +2,7 @@ import path from "path";
 import { Intents, Interaction, Message } from "discord.js";
 import { Client } from "discordx";
 
-import { itemDb, spellDb } from ".";
+import { itemDb, mongo, spellDb } from ".";
 
 process.on('unhandledRejection', (error) => {
 	console.error('Unhandled promise rejection:', error);
@@ -30,7 +30,7 @@ client.once("ready", async () => {
     });
     await client.initApplicationPermissions();
 
-    await itemDb.initialize();
+    await mongo.initialize();
     await spellDb.initialize();
 
     console.log("Bot started");
