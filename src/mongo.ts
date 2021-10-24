@@ -1,6 +1,6 @@
 import { Db, MongoClient } from "mongodb";
 
-const dburl = 'mongodb://162.33.179.138:27017';
+const dburl = 'mongodb://127.0.0.1:27017';
 const dbname = 'eqgdkp';
 
 export default class Mongo {

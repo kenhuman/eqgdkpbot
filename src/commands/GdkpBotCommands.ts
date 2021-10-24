@@ -1,7 +1,7 @@
 import { ArgsOf, Discord, Guard, GuardFunction, On, SimpleCommandMessage, Slash, SlashOption } from "discordx";
 import { RawEQItem } from "../itemDb";
 import { itemDb, mongo, spellDb } from "..";
-import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, Message, MessageEmbed, MessageReaction, SelectMenuInteraction, User, VoiceState } from "discord.js";
+import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, GuildManager, GuildMember, Message, MessageEmbed, MessageReaction, SelectMenuInteraction, User, VoiceState } from "discord.js";
 import { APIUser } from "discord-api-types";
 
 interface bid {
@@ -190,11 +190,13 @@ const NotBot: GuardFunction<ArgsOf<"messageCreate"> | CommandInteraction | Messa
 };
 
 const HasRole = (role: string) => {
-    const guard: GuardFunction<ArgsOf<"messageCreate"> | CommandInteraction | SimpleCommandMessage> = async(arg, client, next) => {
+    const guard: GuardFunction<ArgsOf<"messageCreate"> | CommandInteraction> = async(arg, client, next) => {
         const argObj = arg instanceof Array ? arg[0] : arg;
-        if(argObj instanceof Message) {
-            if(argObj.member?.roles.cache.some(r => r.name === role) || argObj.member?.permissions.has('ADMINISTRATOR')) {
-                await next();
+        if(argObj instanceof CommandInteraction) {
+            if(argObj.member instanceof GuildMember) {
+                if(argObj.member?.roles.cache.some(r => r.name === role) || argObj.member?.permissions.has('ADMINISTRATOR')) {
+                    await next();
+                }
             }
         }
     }
