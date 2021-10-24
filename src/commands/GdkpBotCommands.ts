@@ -406,7 +406,7 @@ class GdkpBotCommands {
     private async setChannel(interaction: CommandInteraction) {
         interaction.deferReply();
         interaction.deleteReply();
-        this.channelId = interaction.channelId;
+        this.setChannelId(interaction.channelId);
     }
 
     @On("messageCreate")
