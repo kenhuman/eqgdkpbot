@@ -224,9 +224,12 @@ class GdkpBotCommands {
     private async setChannelId(channelId: string): Promise<void> {
         const db = mongo.db;
         const collection = db.collection('config');
-        await collection.insertOne({
-            key: 'channelId',
+        await collection.updateOne({
+            key: 'channelId'
+        }, {
             value: channelId
+        }, {
+            upsert: true
         });
         this.channelId = channelId;
     }
