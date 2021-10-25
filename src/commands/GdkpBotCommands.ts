@@ -227,7 +227,9 @@ class GdkpBotCommands {
         await collection.updateOne({
             key: 'channelId'
         }, {
-            value: channelId
+            $set: {
+                value: channelId
+            }
         }, {
             upsert: true
         });
