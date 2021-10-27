@@ -625,7 +625,8 @@ class GdkpBotCommands {
                         if(auction.bids.length) {                            
                             const winner = this.getWinner(auction);
                             itemEmbed.fields[1].value = `${winner.interaction.user.username} - ${winner.amount}`;
-                            winner.interaction.user.send(`You won the bid for ${itemName} at ${winner.amount} platinum.`)
+                            winner.interaction.user.send(`You won the bid for ${itemName} at ${winner.amount} platinum.`);
+                            winner.interaction.channel?.send(`[${auction.id}] Winner: ${winner.interaction.user.username} - ${itemName} - ${winner.amount}`);
                         } else {                            
                             itemEmbed.fields[1].value = 'No bids placed.';
                         }
