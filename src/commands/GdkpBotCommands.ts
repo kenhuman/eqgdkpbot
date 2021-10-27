@@ -1,7 +1,7 @@
 import { ArgsOf, Discord, Guard, GuardFunction, On, SelectMenuComponent, SimpleCommandMessage, Slash, SlashOption } from "discordx";
 import { RawEQItem } from "../itemDb";
 import { itemDb, mongo, spellDb } from "..";
-import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, GuildManager, GuildMember, Message, MessageActionRow, MessageEmbed, MessageReaction, MessageSelectMenu, SelectMenuInteraction, User, VoiceState } from "discord.js";
+import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, GuildMember, Message, MessageActionRow, MessageEmbed, MessageReaction, MessageSelectMenu, SelectMenuInteraction, User, VoiceState } from "discord.js";
 import { APIUser } from "discord-api-types";
 import { FindCursor } from "mongodb";
 
@@ -249,6 +249,7 @@ class GdkpBotCommands {
         this.auctions = new Map<number, Auction>();
         this.completedAuctions = [];
         this.channelId = '';
+        this.initialize();
     }
 
     private async initialize(): Promise<void> {
@@ -299,19 +300,20 @@ class GdkpBotCommands {
         amount = Math.floor(amount);
         if(amount < 1) amount = 1;
         const idNum = parseInt(id, 16);
-        //interaction.deferReply({ ephemeral: true });
-        //interaction.deleteReply();
+        interaction.deferReply({ ephemeral: true });
+        interaction.deleteReply();
         const member = await interaction.guild?.members.fetch(interaction.user.id);
+        let response = 'Auction id not found, no bid placed.';
         if(this.auctions.has(idNum)) {
             this.auctions.get(idNum)?.bids.push({
                 interaction,
                 amount,
                 user: member?.nickname ?? interaction.user.username
             });
-            interaction.user.send(`Bid on ${this.getItemName(this.auctions.get(idNum))} accepted at ${amount} platinum.`);
-        } else {
-            interaction.user.send(`Auction id not found, no bid placed.`);
+            response = `Bid on ${this.getItemName(this.auctions.get(idNum))} accepted at ${amount} platinum.`;
         }
+        interaction.user.send(response);
+        interaction.editReply(response);
     }
 
     @Slash("getauction")
@@ -323,7 +325,6 @@ class GdkpBotCommands {
     ): Promise<void> {
         const idNum = parseInt(id, 16);
         interaction.deferReply({ ephemeral: true });
-        interaction.deleteReply();
         const auctions = this.completedAuctions.filter(e => e.id === idNum);
 
         const sendAuctionInfo = (auction: Auction): void => {
@@ -356,6 +357,7 @@ class GdkpBotCommands {
         } else {
             sendAuctionInfo(auctions[0]);
         }
+        interaction.editReply(`Sent auction info for ${id}`);
     }
 
     @Slash("updatedb")
@@ -371,15 +373,15 @@ class GdkpBotCommands {
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async setChannel(interaction: CommandInteraction) {
         interaction.deferReply({ ephemeral: true });
-        interaction.deleteReply();
         this.setChannelId(interaction.channelId);
+        interaction.editReply('Channel Set');
     }
 
     @SelectMenuComponent("item-options-menu")
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async handleItemOptionsMenu(interaction: SelectMenuInteraction) {
         interaction.deferReply({ ephemeral: true });
-        interaction.deleteReply();
+        let message = 'Auction item not sent.'
         const value = interaction.values?.[0];
         if(value) {
             const values = value.split(':');
@@ -387,8 +389,10 @@ class GdkpBotCommands {
             const which = parseInt(values[1], 10);
             if(auction) {
                 this.updateInteraction(auction, which);
+                message = `Auction ${parseInt(values[0], 10).toString(16)} item set to ${which}`;
             }
         }
+        interaction.editReply(message);
     }
 
     @On("messageCreate")

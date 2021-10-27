@@ -2,7 +2,7 @@ import path from "path";
 import { Intents, Interaction, Message } from "discord.js";
 import { Client } from "discordx";
 
-import { itemDb, mongo, spellDb } from ".";
+import { mongo, spellDb } from ".";
 
 process.on('unhandledRejection', (error) => {
 	console.error('Unhandled promise rejection:', error);
