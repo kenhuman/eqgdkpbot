@@ -586,9 +586,8 @@ class GdkpBotCommands {
         auction.itemEmbed = itemEmbed;
         this.auctions.set(auctionId, auction);
         
-        if(itemOptions.length) {
-            let menuItems = [];
-        
+        if(itemOptions.length && itemOptions.length > 1) {
+            let menuItems = [];        
             for(let i = 0; i < itemOptions.length; i++) {
                 if(itemOptions[0].name) {
                     menuItems.push({
@@ -602,7 +601,7 @@ class GdkpBotCommands {
             const menuRow = new MessageActionRow().addComponents(menu);
             interaction.editReply({
                 embeds: [itemEmbed],
-                components: [menuRow]
+                /*components: [menuRow]*/
             });
         } else {
             interaction.editReply({
