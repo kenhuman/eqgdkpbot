@@ -300,7 +300,7 @@ class GdkpBotCommands {
         amount = Math.floor(amount);
         if(amount < 1) amount = 1;
         const idNum = parseInt(id, 16);
-        interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: true });
         const member = await interaction.guild?.members.fetch(interaction.user.id);
         let response = 'Auction id not found, no bid placed.';
         if(this.auctions.has(idNum)) {
@@ -371,7 +371,7 @@ class GdkpBotCommands {
     @Slash("setchannel")
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async setChannel(interaction: CommandInteraction) {
-        interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: true });
         this.setChannelId(interaction.channelId);
         interaction.editReply('Channel Set');
     }
@@ -379,7 +379,7 @@ class GdkpBotCommands {
     @SelectMenuComponent("item-options-menu")
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async handleItemOptionsMenu(interaction: SelectMenuInteraction) {
-        interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: true });
         let message = 'Auction item not sent.'
         const value = interaction.values?.[0];
         if(value) {
