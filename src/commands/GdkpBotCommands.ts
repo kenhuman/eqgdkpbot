@@ -269,8 +269,6 @@ class GdkpBotCommands {
             itemDbResult = await itemDb.getItemByName(item);
         }
 
-        console.log(itemDbResult);
-
         if(itemDbResult) {
             this.createAuction(itemDbResult, time, interaction);
         } else {
@@ -546,9 +544,6 @@ class GdkpBotCommands {
     }
 
     private async createAuction(item: RawEQItem | FindCursor<RawEQItem> | string, time: number, interaction: CommandInteraction): Promise<void> {
-
-        console.log(item);
-
         let itemOptions: RawEQItem[] = [];
         if(isFindCursor(item)) {
             itemOptions = await item.toArray();
