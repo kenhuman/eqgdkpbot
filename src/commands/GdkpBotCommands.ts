@@ -8,6 +8,7 @@ import { FindCursor } from "mongodb";
 interface bid {
     interaction: CommandInteraction;
     amount: number;
+    user: string;
 }
 
 interface Auction {
@@ -298,12 +299,14 @@ class GdkpBotCommands {
         amount = Math.floor(amount);
         if(amount < 1) amount = 1;
         const idNum = parseInt(id, 16);
-        interaction.deferReply({ ephemeral: true });
-        interaction.deleteReply();
+        //interaction.deferReply({ ephemeral: true });
+        //interaction.deleteReply();
+        const member = await interaction.guild?.members.fetch(interaction.user.id);
         if(this.auctions.has(idNum)) {
             this.auctions.get(idNum)?.bids.push({
                 interaction,
-                amount
+                amount,
+                user: member?.nickname ?? interaction.user.username
             });
             interaction.user.send(`Bid on ${this.getItemName(this.auctions.get(idNum))} accepted at ${amount} platinum.`);
         } else {
@@ -330,10 +333,10 @@ class GdkpBotCommands {
                 msg += `\nName: ${this.getItemName(auction)}`;
                 msg += "\nBidders:";
                 for(const bid of auction.bids) {
-                    msg += `\n${bid.interaction.user.username}: ${bid.amount}`;
+                    msg += `\n${bid.user}: ${bid.amount}`;
                 }
                 const winner = this.getWinner(auction);
-                msg += `\nWinner: ${winner.interaction.user.username}: ${winner.amount}`;
+                msg += `\nWinner: ${winner.user}: ${winner.amount}`;
             } else {
                 msg = "Auction not found.";
             }
@@ -550,7 +553,8 @@ class GdkpBotCommands {
 
         const result: bid = {
             interaction: winner.interaction,
-            amount: winningAmount
+            amount: winningAmount,
+            user: winner.user
         }
 
         return result;
@@ -630,7 +634,7 @@ class GdkpBotCommands {
                             const winner = this.getWinner(auction);
                             itemEmbed.fields[1].value = `${(winner.interaction.member as GuildMember).nickname} - ${winner.amount}`;
                             winner.interaction.user.send(`You won the bid for ${itemName} at ${winner.amount} platinum.`);
-                            winner.interaction.channel?.send(`[${auction.id.toString(16)}] Winner: ${(winner.interaction.member as GuildMember).nickname} - ${itemName} - ${winner.amount}`);
+                            winner.interaction.channel?.send(`[${auction.id.toString(16)}] Winner: ${winner.user} - ${itemName} - ${winner.amount}`);
                         } else {                            
                             itemEmbed.fields[1].value = 'No bids placed.';
                         }
