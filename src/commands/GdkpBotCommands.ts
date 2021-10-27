@@ -270,7 +270,16 @@ class GdkpBotCommands {
         }
 
         if(itemDbResult) {
-            this.createAuction(itemDbResult, time, interaction);
+            if(isFindCursor(itemDbResult)) {
+                const size = await itemDbResult.count();
+                if(size === 0) {
+                    this.createAuction(item, time, interaction);
+                } else {
+                    this.createAuction(itemDbResult, time, interaction);
+                }
+            } else {
+                this.createAuction(itemDbResult, time, interaction);
+            }
         } else {
             this.createAuction(item, time, interaction);
         }        
