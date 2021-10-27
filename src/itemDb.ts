@@ -43,10 +43,10 @@ export default class ItemDB {
         return result;
     }
 
-    public async getItemByName(name: string): Promise<RawEQItem | null> {
+    public async getItemByName(name: string): Promise<RawEQItem | RawEQItem[] | null> {
         const db = mongo.db;
         const collection = db.collection(dbcoll);
-        const result = await collection.findOne<RawEQItem>({ name: { $regex: new RegExp(name, 'i') } });
+        const result = await collection.find<RawEQItem>({ name: { $regex: new RegExp(name, 'i') } });
         return result;
     }
 
