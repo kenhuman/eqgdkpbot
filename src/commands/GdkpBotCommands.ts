@@ -264,6 +264,8 @@ class GdkpBotCommands {
             itemDbResult = await itemDb.getItemByName(item);
         }
 
+        console.log(itemDbResult);
+
         if(itemDbResult) {
             this.createAuction(itemDbResult, time, interaction);
         } else {
@@ -353,6 +355,7 @@ class GdkpBotCommands {
         interaction.deleteReply();
         this.setChannelId(interaction.channelId);
     }
+
     @SelectMenuComponent("item-options-menu")
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async handleItemOptionsMenu(interaction: SelectMenuInteraction) {
@@ -538,6 +541,9 @@ class GdkpBotCommands {
     }
 
     private createAuction(item: RawEQItem | string, time: number, interaction: CommandInteraction): void {
+
+        console.log(item);
+
         let itemOptions = [];
         if(Array.isArray(item)) {
             itemOptions = item;
