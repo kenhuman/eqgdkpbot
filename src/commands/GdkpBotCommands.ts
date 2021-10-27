@@ -250,6 +250,10 @@ class GdkpBotCommands {
         this.channelId = '';
     }
 
+    private async initialize(): Promise<void> {
+        this.getChannelId();
+    }
+
     @Slash("startbids")
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async startbids(
@@ -294,7 +298,7 @@ class GdkpBotCommands {
         amount = Math.floor(amount);
         if(amount < 1) amount = 1;
         const idNum = parseInt(id, 16);
-        interaction.deferReply();
+        interaction.deferReply({ ephemeral: true });
         interaction.deleteReply();
         if(this.auctions.has(idNum)) {
             this.auctions.get(idNum)?.bids.push({
@@ -315,7 +319,7 @@ class GdkpBotCommands {
         interaction: CommandInteraction
     ): Promise<void> {
         const idNum = parseInt(id, 16);
-        interaction.deferReply();
+        interaction.deferReply({ ephemeral: true });
         interaction.deleteReply();
         const auctions = this.completedAuctions.filter(e => e.id === idNum);
 
@@ -354,7 +358,7 @@ class GdkpBotCommands {
     @Slash("updatedb")
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async updateDb(interaction: CommandInteraction) {
-        await interaction.deferReply();
+        await interaction.deferReply({ ephemeral: true });
         interaction.editReply({ content: 'Updating database.' });
         await itemDb.extractArchive();
         interaction.editReply({ content: 'Database update complete. '});
@@ -363,7 +367,7 @@ class GdkpBotCommands {
     @Slash("setchannel")
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async setChannel(interaction: CommandInteraction) {
-        interaction.deferReply();
+        interaction.deferReply({ ephemeral: true });
         interaction.deleteReply();
         this.setChannelId(interaction.channelId);
     }
@@ -371,7 +375,7 @@ class GdkpBotCommands {
     @SelectMenuComponent("item-options-menu")
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async handleItemOptionsMenu(interaction: SelectMenuInteraction) {
-        interaction.deferReply();
+        interaction.deferReply({ ephemeral: true });
         interaction.deleteReply();
         const value = interaction.values?.[0];
         if(value) {
@@ -624,9 +628,9 @@ class GdkpBotCommands {
                     if(auction) {
                         if(auction.bids.length) {                            
                             const winner = this.getWinner(auction);
-                            itemEmbed.fields[1].value = `${winner.interaction.user.username} - ${winner.amount}`;
+                            itemEmbed.fields[1].value = `${(winner.interaction.member as GuildMember).nickname} - ${winner.amount}`;
                             winner.interaction.user.send(`You won the bid for ${itemName} at ${winner.amount} platinum.`);
-                            winner.interaction.channel?.send(`[${auction.id}] Winner: ${winner.interaction.user.username} - ${itemName} - ${winner.amount}`);
+                            winner.interaction.channel?.send(`[${auction.id.toString(16)}] Winner: ${(winner.interaction.member as GuildMember).nickname} - ${itemName} - ${winner.amount}`);
                         } else {                            
                             itemEmbed.fields[1].value = 'No bids placed.';
                         }
