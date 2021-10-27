@@ -3,6 +3,7 @@ import { RawEQItem } from "../itemDb";
 import { itemDb, mongo, spellDb } from "..";
 import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, GuildManager, GuildMember, Message, MessageActionRow, MessageEmbed, MessageReaction, MessageSelectMenu, SelectMenuInteraction, User, VoiceState } from "discord.js";
 import { APIUser } from "discord-api-types";
+import { FindCursor } from "mongodb";
 
 interface bid {
     interaction: CommandInteraction;
@@ -208,6 +209,10 @@ const HasRole = (role: string) => {
 
 const AUCTIONEER_ROLE = 'Officer';
 
+function isFindCursor(obj: string | RawEQItem | FindCursor<RawEQItem>): obj is FindCursor<RawEQItem> {
+    return (obj as FindCursor<RawEQItem>).toArray !== undefined;
+}
+
 @Discord()
 class GdkpBotCommands {
     private auctions: Map<number, Auction>;
@@ -257,7 +262,7 @@ class GdkpBotCommands {
         if(time < 1) time = 1;
         await interaction.deferReply();
         
-        let itemDbResult: RawEQItem | RawEQItem[] | null;
+        let itemDbResult: RawEQItem | FindCursor<RawEQItem> | null;
         if(!isNaN(parseInt(item)) && !isNaN(parseFloat(item))) {
             itemDbResult = await itemDb.getItemById(parseInt(item));
         } else {
@@ -540,14 +545,14 @@ class GdkpBotCommands {
         return result;
     }
 
-    private createAuction(item: RawEQItem | string, time: number, interaction: CommandInteraction): void {
+    private async createAuction(item: RawEQItem | FindCursor<RawEQItem> | string, time: number, interaction: CommandInteraction): Promise<void> {
 
         console.log(item);
 
-        let itemOptions = [];
-        if(Array.isArray(item)) {
-            itemOptions = item;
-            item = item[0];
+        let itemOptions: RawEQItem[] = [];
+        if(isFindCursor(item)) {
+            itemOptions = await item.toArray();
+            item = itemOptions[0];
         }
 
         const auctionId = this.getNewId();
@@ -585,10 +590,12 @@ class GdkpBotCommands {
             let menuItems = [];
         
             for(let i = 0; i < itemOptions.length; i++) {
-                menuItems.push({
-                    label: itemOptions[0].name,
-                    value: `${auctionId}:${i}`
-                });
+                if(itemOptions[0].name) {
+                    menuItems.push({
+                        label: itemOptions[0].name,
+                        value: `${auctionId}:${i}`
+                    });
+                }
             }
 
             const menu = new MessageSelectMenu().addOptions(menuItems).setCustomId('item-options-menu');

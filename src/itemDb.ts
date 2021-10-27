@@ -1,4 +1,5 @@
 import { createReadStream } from "fs";
+import { FindCursor } from "mongodb";
 import { createGunzip } from "zlib";
 import { mongo } from ".";
 
@@ -43,7 +44,7 @@ export default class ItemDB {
         return result;
     }
 
-    public async getItemByName(name: string): Promise<RawEQItem | RawEQItem[] | null> {
+    public async getItemByName(name: string): Promise<FindCursor<RawEQItem>> {
         const db = mongo.db;
         const collection = db.collection(dbcoll);
         const result = await collection.find<RawEQItem>({ name: { $regex: new RegExp(name, 'i') } });
