@@ -301,7 +301,6 @@ class GdkpBotCommands {
         if(amount < 1) amount = 1;
         const idNum = parseInt(id, 16);
         interaction.deferReply({ ephemeral: true });
-        interaction.deleteReply();
         const member = await interaction.guild?.members.fetch(interaction.user.id);
         let response = 'Auction id not found, no bid placed.';
         if(this.auctions.has(idNum)) {
