@@ -1,7 +1,7 @@
-import { ArgsOf, Discord, Guard, GuardFunction, On, SimpleCommandMessage, Slash, SlashOption } from "discordx";
+import { ArgsOf, Discord, Guard, GuardFunction, On, SelectMenuComponent, SimpleCommandMessage, Slash, SlashOption } from "discordx";
 import { RawEQItem } from "../itemDb";
 import { itemDb, mongo, spellDb } from "..";
-import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, GuildManager, GuildMember, Message, MessageEmbed, MessageReaction, SelectMenuInteraction, User, VoiceState } from "discord.js";
+import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, GuildManager, GuildMember, Message, MessageActionRow, MessageEmbed, MessageReaction, MessageSelectMenu, SelectMenuInteraction, User, VoiceState } from "discord.js";
 import { APIUser } from "discord-api-types";
 
 interface bid {
@@ -13,6 +13,9 @@ interface Auction {
     id: number;
     item: RawEQItem | string;
     bids: bid[];
+    itemOptions?: RawEQItem[];
+    interaction?: CommandInteraction;
+    itemEmbed?: MessageEmbed;
 }
 
 interface ConfigItem {
@@ -254,83 +257,18 @@ class GdkpBotCommands {
         if(time < 1) time = 1;
         await interaction.deferReply();
         
-        let eqitem: RawEQItem | null;
+        let itemDbResult: RawEQItem | RawEQItem[] | null;
         if(!isNaN(parseInt(item)) && !isNaN(parseFloat(item))) {
-            eqitem = await itemDb.getItemById(parseInt(item));
+            itemDbResult = await itemDb.getItemById(parseInt(item));
         } else {
-            eqitem = await itemDb.getItemByName(item);
+            itemDbResult = await itemDb.getItemByName(item);
         }
 
-        const auctionId = this.getNewId();
-
-        const auction: Auction = {
-            id: auctionId,
-            item: eqitem ?? item,
-            bids: []
-        };
-        this.auctions.set(auctionId, auction);
-
-        const itemName = this.getItemName(auction) ?? '';
-
-        const itemString = eqitem ? this.generateItemString(eqitem) : 'Item not found!';
-
-        const endTime = new Date();
-        endTime.setMinutes(endTime.getMinutes() + time);
-
-        const itemEmbed = new MessageEmbed()
-            .setColor('RANDOM')
-            .setTitle(itemName)
-            .setDescription(`Bids are open for ${eqitem?.name ?? item}. To bid, type /bid ${auctionId.toString(16).padStart(4, '0')} [bid].`)
-            .addFields({
-                name: itemName,
-                value: itemString
-            }, {
-                name: 'Time Remaining',
-                value: `${time.toString().padStart(2, '0')}:00`
-            });
-        
-        interaction.editReply({
-            embeds: [itemEmbed]
-        });
-
-        let lastDiff = 0;
-        const countdownTimer = (): void => {
-            const now = new Date();
-            const diff = endTime.getTime() - now.getTime();
-            if(diff !== lastDiff) {
-                if(diff <= 0) {
-                    const auction = this.auctions.get(auctionId);
-                    itemEmbed.fields[1].name = 'Winner';
-                    if(auction) {
-                        if(auction.bids.length) {                            
-                            const winner = this.getWinner(auction);
-                            itemEmbed.fields[1].value = `${winner.interaction.user.username} - ${winner.amount}`;
-                            winner.interaction.user.send(`You won the bid for ${itemName} at ${winner.amount} platinum.`)
-                        } else {                            
-                            itemEmbed.fields[1].value = 'No bids placed.';
-                        }
-                        this.completedAuctions.push(auction);
-                        while(this.completedAuctions.length > 100) {
-                            this.completedAuctions.shift();
-                        }
-                        this.auctions.delete(auctionId);
-                    }
-                } else {
-                    const seconds = Math.floor(diff / 1000 % 60);
-                    const minutes = Math.floor(diff / 1000 / 60);
-                    itemEmbed.fields[1].value = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                }
-                interaction.editReply({
-                    embeds: [itemEmbed]
-                });
-            }
-            if(diff > 0) {
-                lastDiff = diff;
-                setTimeout(countdownTimer, 1000);
-            }
-        }
-
-        countdownTimer();
+        if(itemDbResult) {
+            this.createAuction(itemDbResult, time, interaction);
+        } else {
+            this.createAuction(item, time, interaction);
+        }        
     }
 
     @Slash("bid")
@@ -414,6 +352,21 @@ class GdkpBotCommands {
         interaction.deferReply();
         interaction.deleteReply();
         this.setChannelId(interaction.channelId);
+    }
+    @SelectMenuComponent("item-options-menu")
+    @Guard(HasRole(AUCTIONEER_ROLE))
+    private async handleItemOptionsMenu(interaction: SelectMenuInteraction) {
+        interaction.deferReply();
+        interaction.deleteReply();
+        const value = interaction.values?.[0];
+        if(value) {
+            const values = value.split(':');
+            const auction = this.auctions.get(parseInt(values[0], 10));
+            const which = parseInt(values[1], 10);
+            if(auction) {
+                this.updateInteraction(auction, which);
+            }
+        }
     }
 
     @On("messageCreate")
@@ -582,5 +535,122 @@ class GdkpBotCommands {
         }
 
         return result;
+    }
+
+    private createAuction(item: RawEQItem | string, time: number, interaction: CommandInteraction): void {
+        let itemOptions = [];
+        if(Array.isArray(item)) {
+            itemOptions = item;
+            item = item[0];
+        }
+
+        const auctionId = this.getNewId();
+
+        const auction: Auction = {
+            id: auctionId,
+            item,
+            bids: [],
+            itemOptions,
+            interaction,
+        };
+
+        const itemName = this.getItemName(auction) ?? '';
+
+        const itemString = typeof item === "string" ? 'Item not found!' : this.generateItemString(item);
+
+        const endTime = new Date();
+        endTime.setMinutes(endTime.getMinutes() + time);
+
+        const itemEmbed = new MessageEmbed()
+            .setColor('RANDOM')
+            .setTitle(itemName)
+            .setDescription(`Bids are open for ${typeof item === "string" ? item : item?.name }. To bid, type /bid ${auctionId.toString(16).padStart(4, '0')} [bid].`)
+            .addFields({
+                name: itemName,
+                value: itemString
+            }, {
+                name: 'Time Remaining',
+                value: `${time.toString().padStart(2, '0')}:00`
+            });
+        auction.itemEmbed = itemEmbed;
+        this.auctions.set(auctionId, auction);
+        
+        if(itemOptions.length) {
+            let menuItems = [];
+        
+            for(let i = 0; i < itemOptions.length; i++) {
+                menuItems.push({
+                    label: itemOptions[0].name,
+                    value: `${auctionId}:${i}`
+                });
+            }
+
+            const menu = new MessageSelectMenu().addOptions(menuItems).setCustomId('item-options-menu');
+            const menuRow = new MessageActionRow().addComponents(menu);
+            interaction.editReply({
+                embeds: [itemEmbed],
+                components: [menuRow]
+            });
+        } else {
+            interaction.editReply({
+                embeds: [itemEmbed]
+            });
+        }
+
+        let lastDiff = 0;
+        const countdownTimer = (): void => {
+            const now = new Date();
+            const diff = endTime.getTime() - now.getTime();
+            if(diff !== lastDiff) {
+                if(diff <= 0) {
+                    const auction = this.auctions.get(auctionId);
+                    itemEmbed.fields[1].name = 'Winner';
+                    if(auction) {
+                        if(auction.bids.length) {                            
+                            const winner = this.getWinner(auction);
+                            itemEmbed.fields[1].value = `${winner.interaction.user.username} - ${winner.amount}`;
+                            winner.interaction.user.send(`You won the bid for ${itemName} at ${winner.amount} platinum.`)
+                        } else {                            
+                            itemEmbed.fields[1].value = 'No bids placed.';
+                        }
+                        this.completedAuctions.push(auction);
+                        while(this.completedAuctions.length > 100) {
+                            this.completedAuctions.shift();
+                        }
+                        this.auctions.delete(auctionId);
+                    }
+                } else {
+                    const seconds = Math.floor(diff / 1000 % 60);
+                    const minutes = Math.floor(diff / 1000 / 60);
+                    itemEmbed.fields[1].value = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+                interaction.editReply({
+                    embeds: [itemEmbed]
+                });
+            }
+            if(diff > 0) {
+                lastDiff = diff;
+                setTimeout(countdownTimer, 1000);
+            }
+        }
+
+        countdownTimer();
+    }
+
+    private updateInteraction(auction: Auction, which: number): void {
+        if(auction.itemOptions && auction.itemOptions?.length) {
+            const itemEmbed = auction.itemEmbed;
+            const interaction = auction.interaction;
+            const item = auction.itemOptions[which];
+            const itemString = typeof item === "string" ? 'Item not found!' : this.generateItemString(item);
+            if(itemEmbed) {
+                itemEmbed.fields[0].value = itemString;
+                if(interaction) {
+                    interaction.editReply({
+                        embeds: [itemEmbed]
+                    });
+                }
+            }            
+        }
     }
 }
