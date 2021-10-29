@@ -4,6 +4,7 @@ import { itemDb, mongo, spellDb } from "..";
 import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, GuildMember, Message, MessageActionRow, MessageEmbed, MessageReaction, MessageSelectMenu, SelectMenuInteraction, User, VoiceState } from "discord.js";
 import { APIUser } from "discord-api-types";
 import { FindCursor } from "mongodb";
+import { escape } from "querystring";
 
 interface bid {
     interaction: CommandInteraction;
@@ -598,7 +599,7 @@ class GdkpBotCommands {
                 value: `${time.toString().padStart(2, '0')}:00`
             },{
                 name: 'Allakhazam',
-                value: `[${itemName}](https://everquest.allakhazam.com/cluster/autocomp.pl?q=${itemName})`
+                value: `[${itemName}](${escape('https://everquest.allakhazam.com/cluster/autocomp.pl?q=${itemName}')})`
             });
         auction.itemEmbed = itemEmbed;
         this.auctions.set(auctionId, auction);
