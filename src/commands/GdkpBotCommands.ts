@@ -163,7 +163,7 @@ enum ItemSizes {
     Giant2
 }
 
-const weaponTypes = [ItemTypes["1HB"], ItemTypes["1HS"], ItemTypes["2H Piercing"], ItemTypes["2HB"], ItemTypes["2HS"], ItemTypes.Archery, ItemTypes.Throwing];
+const weaponTypes = [ItemTypes["1HB"], ItemTypes["1HS"], ItemTypes["2H Piercing"], ItemTypes["2HB"], ItemTypes["2HS"], ItemTypes.Archery, ItemTypes.Throwing, ItemTypes.Piercing];
 
 const GetUser = (arg: any): User | APIUser | null | undefined => {
     const argObj = arg instanceof Array ? arg[0] : arg;
