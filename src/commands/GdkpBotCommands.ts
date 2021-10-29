@@ -329,10 +329,10 @@ class GdkpBotCommands {
         const sendAuctionInfo = (auction: Auction): void => {
             let msg = '';
             if(auction) {
-                msg = `Id: ${auction.id}`;
+                msg = `Id: ${auction.id.toString(16)}`;
                 msg += `\nName: ${this.getItemName(auction)}`;
                 msg += "\nBidders:";
-                for(const bid of auction.bids) {
+                for(const bid of auction.bids.sort((a, b) => a.amount > b.amount ? 1 : -1)) {
                     msg += `\n${bid.user}: ${bid.amount}`;
                 }
                 const winner = this.getWinner(auction);
@@ -581,6 +581,7 @@ class GdkpBotCommands {
         };
 
         const itemName = this.getItemName(auction) ?? '';
+        const itemId = !(typeof item === 'string') ? item.id : null;
 
         const itemString = typeof item === "string" ? 'Item not found!' : this.generateItemString(item);
 
@@ -589,7 +590,7 @@ class GdkpBotCommands {
 
         const itemEmbed = new MessageEmbed()
             .setColor('RANDOM')
-            .setTitle(itemName)
+            .setTitle(itemId ? `[${itemName}](https://everquest.allakhazam.com/db/item.html?item=${itemId})` : itemName)
             .setDescription(`Bids are open for ${typeof item === "string" ? item : item?.name }. To bid, type /bid ${auctionId.toString(16).padStart(4, '0')} [bid].`)
             .addFields({
                 name: itemName,
