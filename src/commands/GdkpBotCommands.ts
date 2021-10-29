@@ -587,6 +587,8 @@ class GdkpBotCommands {
         const endTime = new Date();
         endTime.setMinutes(endTime.getMinutes() + time);
 
+        const allaUrl = escape(`https://everquest.allakhazam.com/cluster/autocomp.pl?q=${itemName}`);
+
         const itemEmbed = new MessageEmbed()
             .setColor('RANDOM')
             .setTitle(itemName)
@@ -599,7 +601,7 @@ class GdkpBotCommands {
                 value: `${time.toString().padStart(2, '0')}:00`
             },{
                 name: 'Allakhazam',
-                value: `[${itemName}](${escape('https://everquest.allakhazam.com/cluster/autocomp.pl?q=${itemName}')})`
+                value: `[${itemName}](${allaUrl})`
             });
         auction.itemEmbed = itemEmbed;
         this.auctions.set(auctionId, auction);
