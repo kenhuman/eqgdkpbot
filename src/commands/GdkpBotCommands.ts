@@ -4,7 +4,6 @@ import { itemDb, mongo, spellDb } from "..";
 import { ButtonInteraction, Client, CommandInteraction, ContextMenuInteraction, GuildMember, Message, MessageActionRow, MessageEmbed, MessageReaction, MessageSelectMenu, SelectMenuInteraction, User, VoiceState } from "discord.js";
 import { APIUser } from "discord-api-types";
 import { FindCursor } from "mongodb";
-import { escape } from "querystring";
 
 interface bid {
     interaction: CommandInteraction;
@@ -584,10 +583,10 @@ class GdkpBotCommands {
         const itemName = this.getItemName(auction) ?? '';
         const itemString = typeof item === "string" ? 'Item not found!' : this.generateItemString(item);
 
+        const itemId = typeof item === 'string' ? null : item.id;
+
         const endTime = new Date();
         endTime.setMinutes(endTime.getMinutes() + time);
-
-        const allaUrl = escape(itemName);
 
         const itemEmbed = new MessageEmbed()
             .setColor('RANDOM')
@@ -599,10 +598,13 @@ class GdkpBotCommands {
             }, {
                 name: 'Time Remaining',
                 value: `${time.toString().padStart(2, '0')}:00`
-            },{
-                name: 'Allakhazam',
-                value: `[${itemName}](https://everquest.allakhazam.com/cluster/autocomp.pl?q=${allaUrl})`
             });
+        if(itemId) {
+            itemEmbed.addFields({
+                name: 'Allakhazam',
+                value: `[${itemName}](https://lucy.allakhazam.com/item.html?id=${itemId})`
+            });
+        }
         auction.itemEmbed = itemEmbed;
         this.auctions.set(auctionId, auction);
         
@@ -642,7 +644,7 @@ class GdkpBotCommands {
                             const winner = this.getWinner(auction);
                             itemEmbed.fields[1].value = `${winner.user} - ${winner.amount}`;
                             winner.interaction.user.send(`You won the bid for ${itemName} at ${winner.amount} platinum.`);
-                            winner.interaction.channel?.send(`[${auction.id.toString(16)}] Winner: ${winner.user} - ${itemName} - ${winner.amount}`);
+                            winner.interaction.channel?.send(`[${auction.id.toString(16).padStart(4, '0')}] Winner: ${winner.user} - ${itemName} - ${winner.amount}`);
                         } else {                            
                             itemEmbed.fields[1].value = 'No bids placed.';
                         }
