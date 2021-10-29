@@ -588,6 +588,7 @@ class GdkpBotCommands {
         endTime.setMinutes(endTime.getMinutes() + time);
 
         const allaUrl = escape(`https://everquest.allakhazam.com/cluster/autocomp.pl?q=${itemName}`);
+        console.log(allaUrl);
 
         const itemEmbed = new MessageEmbed()
             .setColor('RANDOM')
