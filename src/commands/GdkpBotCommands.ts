@@ -581,8 +581,6 @@ class GdkpBotCommands {
         };
 
         const itemName = this.getItemName(auction) ?? '';
-        const itemId = !(typeof item === 'string') ? item.id : null;
-
         const itemString = typeof item === "string" ? 'Item not found!' : this.generateItemString(item);
 
         const endTime = new Date();
@@ -598,13 +596,10 @@ class GdkpBotCommands {
             }, {
                 name: 'Time Remaining',
                 value: `${time.toString().padStart(2, '0')}:00`
-            });
-        if(itemId) {
-            itemEmbed.addFields({
+            },{
                 name: 'Allakhazam',
-                value: `[${itemName}](https://everquest.allakhazam.com/db/item.html?item=${itemId})`
+                value: `[${itemName}](https://everquest.allakhazam.com/cluster/autocomp.pl?q=${itemName})`
             });
-        }
         auction.itemEmbed = itemEmbed;
         this.auctions.set(auctionId, auction);
         
