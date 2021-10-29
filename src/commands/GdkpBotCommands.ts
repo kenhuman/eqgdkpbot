@@ -590,7 +590,7 @@ class GdkpBotCommands {
 
         const itemEmbed = new MessageEmbed()
             .setColor('RANDOM')
-            .setTitle(itemId ? `[${itemName}](https://everquest.allakhazam.com/db/item.html?item=${itemId})` : itemName)
+            .setTitle(itemName)
             .setDescription(`Bids are open for ${typeof item === "string" ? item : item?.name }. To bid, type /bid ${auctionId.toString(16).padStart(4, '0')} [bid].`)
             .addFields({
                 name: itemName,
@@ -599,6 +599,12 @@ class GdkpBotCommands {
                 name: 'Time Remaining',
                 value: `${time.toString().padStart(2, '0')}:00`
             });
+        if(itemId) {
+            itemEmbed.addFields({
+                name: 'Allakhazam',
+                value: `[${itemName}](https://everquest.allakhazam.com/db/item.html?item=${itemId})`
+            });
+        }
         auction.itemEmbed = itemEmbed;
         this.auctions.set(auctionId, auction);
         
