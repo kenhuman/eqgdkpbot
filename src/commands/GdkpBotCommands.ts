@@ -621,16 +621,16 @@ class GdkpBotCommands {
 
             const menu = new MessageSelectMenu().addOptions(menuItems).setCustomId('item-options-menu');
             const menuRow = new MessageActionRow().addComponents(menu);
-            interaction.editReply({
+            await interaction.editReply({
                 embeds: [itemEmbed],
                 /*components: [menuRow]*/
             });
         } else {
-            interaction.editReply({
+            await interaction.editReply({
                 embeds: [itemEmbed]
             });
         }
-        interaction.followUp(`/bid ${auctionId.toString(16).padStart(4, '0')}`);
+        await interaction.followUp(`/bid ${auctionId.toString(16).padStart(4, '0')}`);
 
         let lastDiff = 0;
         const countdownTimer = (): void => {
