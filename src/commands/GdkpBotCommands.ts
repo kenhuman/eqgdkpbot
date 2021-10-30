@@ -630,7 +630,7 @@ class GdkpBotCommands {
                 embeds: [itemEmbed]
             });
         }
-        await interaction.followUp(`/bid ${auctionId.toString(16).padStart(4, '0')}`);
+        await interaction.followUp(`/bid id:${auctionId.toString(16).padStart(4, '0')} amount:`);
 
         let lastDiff = 0;
         const countdownTimer = (): void => {
