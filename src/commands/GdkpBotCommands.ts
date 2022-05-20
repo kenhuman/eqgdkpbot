@@ -194,12 +194,15 @@ const NotBot: GuardFunction<ArgsOf<"messageCreate"> | CommandInteraction | Messa
     }
 };
 
-const HasRole = (role: string) => {
+const HasRole = (role: string | string[]) => {
+    if(!Array.isArray(role)) {
+        role = [role];
+    }
     const guard: GuardFunction<ArgsOf<"messageCreate"> | CommandInteraction> = async(arg, client, next) => {
         const argObj = arg instanceof Array ? arg[0] : arg;
         if(argObj instanceof CommandInteraction) {
             if(argObj.member instanceof GuildMember) {
-                if(argObj.member?.roles.cache.some(r => r.name === role) || argObj.member?.permissions.has('ADMINISTRATOR')) {
+                if(argObj.member?.roles.cache.some(r => role.includes(r.name)) || argObj.member?.permissions.has('ADMINISTRATOR')) {
                     await next();
                 }
             }
@@ -208,7 +211,7 @@ const HasRole = (role: string) => {
     return guard;
 }
 
-const AUCTIONEER_ROLE = 'Officer';
+const AUCTIONEER_ROLE = ['Officers', 'Advisor'];
 
 function isFindCursor(obj: string | RawEQItem | FindCursor<RawEQItem>): obj is FindCursor<RawEQItem> {
     return (obj as FindCursor<RawEQItem>).toArray !== undefined;
@@ -323,7 +326,7 @@ class GdkpBotCommands {
         interaction: CommandInteraction
     ): Promise<void> {
         const idNum = parseInt(id, 16);
-        interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: true });
         const auctions = this.completedAuctions.filter(e => e.id === idNum);
 
         const sendAuctionInfo = (auction: Auction): void => {
@@ -356,16 +359,16 @@ class GdkpBotCommands {
         } else {
             sendAuctionInfo(auctions[0]);
         }
-        interaction.editReply(`Sent auction info for ${id}`);
+        await interaction.editReply(`Sent auction info for ${id}`);
     }
 
     @Slash("updatedb")
     @Guard(HasRole(AUCTIONEER_ROLE))
     private async updateDb(interaction: CommandInteraction) {
         await interaction.deferReply({ ephemeral: true });
-        interaction.editReply({ content: 'Updating database.' });
+        await interaction.editReply({ content: 'Updating database.' });
         await itemDb.extractArchive();
-        interaction.editReply({ content: 'Database update complete. '});
+        await interaction.editReply({ content: 'Database update complete. '});
     }
 
     @Slash("setchannel")
